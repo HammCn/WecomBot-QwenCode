@@ -17,7 +17,7 @@ const CONFIG = {
   secret: process.env.WECOM_BOT_SECRET,
   qwen: process.env.QWEN_PATH,
   workspace: process.env.WORKSPACE,
-  port: process.env.PORT || 12580,
+  port: process.env.MCP_PORT || 12580,
 };
 
 // 工作空间缓存
