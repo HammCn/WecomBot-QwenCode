@@ -17,6 +17,7 @@ const CONFIG = {
   secret: process.env.WECOM_BOT_SECRET,
   qwen: process.env.QWEN_PATH,
   workspace: process.env.WORKSPACE,
+  port: process.env.PORT || 12580,
 };
 
 // 工作空间缓存
@@ -583,7 +584,7 @@ async function gracefulShutdown() {
 // ==================== 服务启动 ====================
 
 const httpServer = http.createServer(serverRequestHandler);
-const PORT = 12580;
+const PORT = CONFIG.port;
 
 httpServer.listen(PORT, async () => {
   logger.server('已启动');
