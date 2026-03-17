@@ -472,10 +472,10 @@ async function handleCommandMessage(content, frame, streamId) {
     try {
       await fs.rmdir(clearPath, { recursive: true });
       logger.clean('已完成:', clearPath);
-      wsClient.replyStream(frame, streamId, `会话重开啦`, true);
     } catch (error) {
       logger.error('清理失败:', error);
-      wsClient.replyStream(frame, streamId, `清理失败：${error.message}`, true);
+    } finally {
+      wsClient.replyStream(frame, streamId, `会话重开啦`, true);
     }
     return true;
   }
