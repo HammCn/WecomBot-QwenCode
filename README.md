@@ -36,7 +36,7 @@
 ### 2. 克隆项目
 
 ```bash
-git clone [<repository-url>](https://github.com/HammCn/WecomBot-QwenCode.git)
+git clone https://github.com/HammCn/WecomBot-QwenCode.git
 cd WecomBot-QwenCode
 ```
 
