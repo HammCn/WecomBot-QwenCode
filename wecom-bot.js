@@ -536,7 +536,7 @@ async function handleTextMessage(frame) {
 async function saveFile(url, aesKey) {
     // 使用消息中独立的 aeskey 下载并解密
     const {buffer, filename} = await wsClient.downloadFile(url, aesKey);
-    const savePath = CONFIG.workspace + "/" + filename;
+    const savePath = CONFIG.workspace + "/" + (filename || "image_" + new Date().valueOf() + ".jpg");
     await fs.writeFile(savePath, buffer);
     return savePath;
 }
