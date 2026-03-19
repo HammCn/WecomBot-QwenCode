@@ -465,7 +465,7 @@ async function handleCommandMessage(content, frame, streamId) {
     // 清理命令
     if (content === '/clear') {
         // 工作空间缓存
-        const clearPath = CONFIG.qwen + "/projects/" + (CONFIG.workspace + "/" + frame.body.from.userid).replaceAll("/.", "--").replaceAll("/", "-");
+        const clearPath = CONFIG.qwen + "/projects/" + (CONFIG.workspace).replaceAll("/.", "--").replaceAll("/", "-");
         try {
             await fs.rmdir(clearPath, { recursive: true });
             logger.clean('已完成:', clearPath);
@@ -486,11 +486,10 @@ function executeQwenCommand(content, frame, streamId) {
     let responseText = '';
     const userId = frame.body.from.userid
     content = "[全局参数: 企微ID=" + userId + "] " + content
-    checkUserDir(userId)
     console.log(content)
     const child = spawn(
         'sh',
-        ['-c', `cd ${CONFIG.workspace + "/" + userId} && qwen --continue -y -p "$1"`, '_', content],
+        ['-c', `cd ${CONFIG.workspace} && qwen --continue -y -p "$1"`, '_', content],
         {
             shell: false,
             stdio: ['ignore', 'pipe', 'pipe'],
@@ -533,7 +532,7 @@ async function handleTextMessage(frame) {
 async function saveFile(url, aesKey, userId) {
     // 使用消息中独立的 aeskey 下载并解密
     const { buffer, filename } = await wsClient.downloadFile(url, aesKey);
-    const savePath = CONFIG.workspace + "/" + userId + "/" + (filename || "image_" + new Date().valueOf() + ".jpg");
+    const savePath = CONFIG.workspace + "/" + + (filename || "image_" + new Date().valueOf() + ".jpg");
     await fs.writeFile(savePath, buffer);
     return savePath;
 }
@@ -623,15 +622,6 @@ function handleEnterChat(frame) {
         msgtype: 'text',
         text: { content: '你好，我是 Mac 智能助手，有什么可以帮你的吗？' },
     });
-}
-
-async function checkUserDir(userId) {
-    const userDir = CONFIG.workspace + "/" + userId;
-    console.log(userDir)
-    // 判断用户目录是否存在 否则创建
-    if (!await isDirectory(userDir)) {
-        await fs.mkdir(userDir, { recursive: true });
-    }
 }
 
 // ==================== 服务关闭管理 ====================
