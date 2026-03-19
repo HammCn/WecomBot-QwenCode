@@ -570,6 +570,22 @@ async function handleFileMessage(frame) {
 }
 
 /**
+ * 处理视频消息
+ */
+async function handleVideoMessage(frame) {
+    const body = frame.body;
+    console.log('收到视频:', body);
+    return;
+    const fileUrl = body.file?.url;
+    if (!fileUrl) return;
+    currentFrame = frame;
+    const streamId = generateReqId('stream');
+    await wsClient.replyStream(frame, streamId, '<think></think>', false);
+    const savePath = await saveFile(fileUrl, body.file?.aeskey)
+    executeQwenCommand("@" + savePath + " 我保存了这个文件，稍后可能会让你协助处理它", frame, streamId)
+}
+
+/**
  * 处理语音消息
  */
 async function handleVoiceMessage(frame) {
@@ -686,6 +702,8 @@ wsClient.on('message.file', handleFileMessage)
 wsClient.on('message.mixed', handleMixedMessage)
 
 wsClient.on('message.voice', handleVoiceMessage)
+
+wsClient.on('video', handleVideoMessage)
 
 wsClient.on('event.enter_chat', handleEnterChat);
 
