@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import http from 'http';
 import fs from 'fs/promises';
 import path from 'path';
-import AiBot, { generateReqId } from '@wecom/aibot-node-sdk';
+import AiBot, { generateReqId } from 'aibot-node-sdk';
 import { spawn } from 'child_process';
 import * as z from 'zod';
 import 'dotenv/config';
@@ -519,9 +519,7 @@ function executeQwenCommand(content, frame, streamId) {
 async function handleTextMessage(frame) {
     const content = frame.body.text?.content;
     logger.message('收到文本:', content);
-
     currentFrame = frame;
-
     const streamId = generateReqId('stream');
     wsClient.replyStream(frame, streamId, '<think></think>', false);
 
@@ -575,14 +573,13 @@ async function handleFileMessage(frame) {
 async function handleVideoMessage(frame) {
     const body = frame.body;
     console.log('收到视频:', body);
-    return;
-    const fileUrl = body.file?.url;
-    if (!fileUrl) return;
+    const videoUrl = body.video?.url;
+    if (!videoUrl) return;
     currentFrame = frame;
     const streamId = generateReqId('stream');
     await wsClient.replyStream(frame, streamId, '<think></think>', false);
-    const savePath = await saveFile(fileUrl, body.file?.aeskey)
-    executeQwenCommand("@" + savePath + " 我保存了这个文件，稍后可能会让你协助处理它", frame, streamId)
+    const savePath = await saveFile(videoUrl, body.video?.aeskey)
+    executeQwenCommand("@" + savePath + " 我保存了这个视频文件，稍后可能会让你协助处理它", frame, streamId)
 }
 
 /**
@@ -703,7 +700,7 @@ wsClient.on('message.mixed', handleMixedMessage)
 
 wsClient.on('message.voice', handleVoiceMessage)
 
-wsClient.on('video', handleVideoMessage)
+wsClient.on('message.video', handleVideoMessage)
 
 wsClient.on('event.enter_chat', handleEnterChat);
 
