@@ -19,8 +19,6 @@ const CONFIG = {
     port: process.env.MCP_PORT || 12580,
 };
 
-// 工作空间缓存
-const CACHE_DIR = CONFIG.qwen + "/projects/" + CONFIG.workspace.replaceAll("/.", "--").replaceAll("/", "-")
 
 // ==================== 日志工具封装 ====================
 
@@ -253,6 +251,23 @@ async function handleSendFile(filePath, userId) {
         },
     };
 }
+/**
+ * 检查路径是否存在，并且是否为目录
+ * @param {string} dirPath - 要检查的路径
+ * @returns {Promise<boolean>} - 如果是目录返回 true，否则 false
+ */
+async function isDirectory(dirPath) {
+    try {
+        const stat = await fs.stat(dirPath);
+        return stat.isDirectory();
+    } catch (err) {
+        if (err.code === 'ENOENT') {
+            return false; // 路径不存在
+        }
+        throw err; // 其他错误
+    }
+}
+
 
 // ==================== MCP Server 管理 ====================
 
@@ -449,7 +464,8 @@ const serverRequestHandler = async (req, res) => {
 async function handleCommandMessage(content, frame, streamId) {
     // 清理命令
     if (content === '/clear') {
-        const clearPath = CACHE_DIR;
+        // 工作空间缓存
+        const clearPath = CONFIG.qwen + "/projects/" + (CONFIG.workspace + "/" + frame.body.from.userid).replaceAll("/.", "--").replaceAll("/", "-");
         try {
             await fs.rmdir(clearPath, { recursive: true });
             logger.clean('已完成:', clearPath);
@@ -468,11 +484,13 @@ async function handleCommandMessage(content, frame, streamId) {
  */
 function executeQwenCommand(content, frame, streamId) {
     let responseText = '';
-    content = "[全局参数: 企微ID=" + frame.body.from.userid + "] " + content
+    const userId = frame.body.from.userid
+    content = "[全局参数: 企微ID=" + userId + "] " + content
+    checkUserDir(userId)
     console.log(content)
     const child = spawn(
         'sh',
-        ['-c', `cd ${CONFIG.workspace} && qwen --continue -y -p "$1"`, '_', content],
+        ['-c', `cd ${CONFIG.workspace + "/" + userId} && qwen --continue -y -p "$1"`, '_', content],
         {
             shell: false,
             stdio: ['ignore', 'pipe', 'pipe'],
@@ -512,10 +530,10 @@ async function handleTextMessage(frame) {
     executeQwenCommand(content, frame, streamId);
 }
 
-async function saveFile(url, aesKey) {
+async function saveFile(url, aesKey, userId) {
     // 使用消息中独立的 aeskey 下载并解密
     const { buffer, filename } = await wsClient.downloadFile(url, aesKey);
-    const savePath = CONFIG.workspace + "/" + (filename || "image_" + new Date().valueOf() + ".jpg");
+    const savePath = CONFIG.workspace + "/" + userId + "/" + (filename || "image_" + new Date().valueOf() + ".jpg");
     await fs.writeFile(savePath, buffer);
     return savePath;
 }
@@ -529,7 +547,7 @@ async function handleImageMessage(frame) {
     if (!imageUrl) return;
     const streamId = generateReqId('stream');
     await wsClient.replyStream(frame, streamId, '<think></think>', false);
-    const savePath = await saveFile(imageUrl, body.image?.aeskey)
+    const savePath = await saveFile(imageUrl, body.image?.aeskey, body.from.userid)
     executeQwenCommand("@" + savePath + " 我保存了这张图片，稍后可能会让你协助处理它", frame, streamId)
 }
 
@@ -542,7 +560,7 @@ async function handleFileMessage(frame) {
     if (!fileUrl) return;
     const streamId = generateReqId('stream');
     await wsClient.replyStream(frame, streamId, '<think></think>', false);
-    const savePath = await saveFile(fileUrl, body.file?.aeskey)
+    const savePath = await saveFile(fileUrl, body.file?.aeskey, body.from.userid)
     executeQwenCommand("@" + savePath + " 我保存了这个文件，稍后可能会让你协助处理它", frame, streamId)
 }
 
@@ -555,7 +573,7 @@ async function handleVideoMessage(frame) {
     if (!videoUrl) return;
     const streamId = generateReqId('stream');
     await wsClient.replyStream(frame, streamId, '<think></think>', false);
-    const savePath = await saveFile(videoUrl, body.video?.aeskey)
+    const savePath = await saveFile(videoUrl, body.video?.aeskey, body.from.userid)
     executeQwenCommand("@" + savePath + " 我保存了这个视频文件，稍后可能会让你协助处理它", frame, streamId)
 }
 
@@ -589,7 +607,7 @@ async function handleMixedMessage(frame) {
             continue
         }
         if (item.msgtype === "image") {
-            const path = await saveFile(item.image?.url, item.image?.aeskey)
+            const path = await saveFile(item.image?.url, item.image?.aeskey, body.from.userid)
             paths.push("@" + path)
         }
     }
@@ -605,6 +623,15 @@ function handleEnterChat(frame) {
         msgtype: 'text',
         text: { content: '你好，我是 Mac 智能助手，有什么可以帮你的吗？' },
     });
+}
+
+async function checkUserDir(userId) {
+    const userDir = CONFIG.workspace + "/" + userId;
+    console.log(userDir)
+    // 判断用户目录是否存在 否则创建
+    if (!await isDirectory(userDir)) {
+        await fs.mkdir(userDir, { recursive: true });
+    }
 }
 
 // ==================== 服务关闭管理 ====================
