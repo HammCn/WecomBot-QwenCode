@@ -1,11 +1,11 @@
-import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
-import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import {randomUUID} from 'node:crypto';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { randomUUID } from 'node:crypto';
 import http from 'http';
 import fs from 'fs/promises';
 import path from 'path';
-import AiBot, {generateReqId} from '@wecom/aibot-node-sdk';
-import {spawn} from 'child_process';
+import AiBot, { generateReqId } from '@wecom/aibot-node-sdk';
+import { spawn } from 'child_process';
 import * as z from 'zod';
 import 'dotenv/config';
 
@@ -44,7 +44,7 @@ const LOG_EMOJIS = {
  * 格式化日志消息
  */
 function formatMessage(emoji, prefix, ...args) {
-    const timestamp = new Date().toLocaleTimeString('zh-CN', {hour12: false});
+    const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
     return `[${timestamp}] ${emoji} [${prefix}] ${args.join(' ')}`;
 }
 
@@ -131,10 +131,10 @@ async function validateFile(filePath) {
 
     try {
         await fs.access(absolutePath);
-        return {success: true, path: absolutePath};
+        return { success: true, path: absolutePath };
     } catch (error) {
         logger.error('文件不存在:', error.message);
-        return {success: false, error: error.message, path: absolutePath};
+        return { success: false, error: error.message, path: absolutePath };
     }
 }
 
@@ -150,7 +150,7 @@ function checkFileSize(fileSize, maxSize = 50 * 1024 * 1024) {
             maxSize,
         };
     }
-    return {success: true};
+    return { success: true };
 }
 
 /**
@@ -163,10 +163,10 @@ async function uploadFileToWecom(fileBuffer, fileName) {
             filename: fileName,
         });
         logger.success('文件上传成功:', fileName);
-        return {success: true, mediaId: result.media_id};
+        return { success: true, mediaId: result.media_id };
     } catch (error) {
         logger.error('文件上传失败:', error.message);
-        return {success: false, error: error.message};
+        return { success: false, error: error.message };
     }
 }
 
@@ -186,10 +186,10 @@ async function sendFileMessage(mediaId) {
     try {
         await wsClient.replyMedia(currentFrame, 'file', mediaId);
         logger.success('文件已发送');
-        return {success: true};
+        return { success: true };
     } catch (error) {
         logger.error('文件发送失败:', error.message);
-        return {success: false, error: error.message};
+        return { success: false, error: error.message };
     }
 }
 
@@ -301,7 +301,7 @@ function createMcpServer() {
                 path: z.string().describe('要发送的文件路径（绝对路径或相对路径）'),
             },
         },
-        async ({path: filePath}) => {
+        async ({ path: filePath }) => {
             try {
                 const result = await handleSendFile(filePath);
 
@@ -363,7 +363,7 @@ function createSessionTransport() {
     mcpServer.connect(transportInstance);
     logger.connect('MCP 连接已建立');
 
-    return {transport: transportInstance, server: mcpServer, sessionId};
+    return { transport: transportInstance, server: mcpServer, sessionId };
 }
 
 /**
@@ -373,7 +373,7 @@ function closeSession(sessionId) {
     if (!transports[sessionId]) return;
 
     logger.session('关闭:', sessionId);
-    const {server, transport} = transports[sessionId];
+    const { server, transport } = transports[sessionId];
 
     // 先删除引用，防止 onclose 回调再次调用 closeSession 导致递归
     delete transports[sessionId];
@@ -445,7 +445,7 @@ const serverRequestHandler = async (req, res) => {
     } catch (error) {
         logger.error('请求失败:', error.message);
         if (!res.headersSent) {
-            res.writeHead(500, {'Content-Type': 'application/json'});
+            res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(
                 JSON.stringify({
                     jsonrpc: '2.0',
@@ -470,7 +470,7 @@ async function handleCommandMessage(content, frame, streamId) {
     if (content === '/clear') {
         const clearPath = CACHE_DIR;
         try {
-            await fs.rmdir(clearPath, {recursive: true});
+            await fs.rmdir(clearPath, { recursive: true });
             logger.clean('已完成:', clearPath);
         } catch (error) {
             logger.error('清理失败:', error);
@@ -535,7 +535,7 @@ async function handleTextMessage(frame) {
 
 async function saveFile(url, aesKey) {
     // 使用消息中独立的 aeskey 下载并解密
-    const {buffer, filename} = await wsClient.downloadFile(url, aesKey);
+    const { buffer, filename } = await wsClient.downloadFile(url, aesKey);
     const savePath = CONFIG.workspace + "/" + (filename || "image_" + new Date().valueOf() + ".jpg");
     await fs.writeFile(savePath, buffer);
     return savePath;
@@ -565,7 +565,7 @@ async function handleFileMessage(frame) {
     currentFrame = frame;
     const streamId = generateReqId('stream');
     await wsClient.replyStream(frame, streamId, '<think></think>', false);
-    const savePath = await saveFile(imageUrl, body.image?.aeskey)
+    const savePath = await saveFile(fileUrl, body.file?.aeskey)
     executeQwenCommand("@" + savePath + " 我保存了这个文件，稍后可能会让你协助处理它", frame, streamId)
 }
 
@@ -615,7 +615,7 @@ function handleEnterChat(frame) {
 
     wsClient.replyWelcome(frame, {
         msgtype: 'text',
-        text: {content: '你好，我是 Mac 智能助手，有什么可以帮你的吗？'},
+        text: { content: '你好，我是 Mac 智能助手，有什么可以帮你的吗？' },
     });
 }
 
