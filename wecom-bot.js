@@ -76,7 +76,6 @@ const wsClient = new AiBot.WSClient({
 
 // 连接状态
 let isConnected = false;
-let currentFrame = null;
 
 // ==================== WebSocket 连接管理 ====================
 
@@ -108,15 +107,6 @@ async function connectWebSocket() {
             }
         }, 10000);
     });
-}
-
-/**
- * 格式化文件大小
- */
-function formatFileSize(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
 }
 
 // ==================== 文件处理业务 ====================
@@ -173,18 +163,9 @@ async function uploadFileToWecom(fileBuffer, fileName) {
 /**
  * 发送文件消息到当前会话
  */
-async function sendFileMessage(mediaId) {
-    if (!currentFrame) {
-        logger.warn('无活跃会话');
-        return {
-            success: false,
-            error: '无活跃会话',
-            message: '当前没有活跃的会话上下文，无法发送文件消息',
-        };
-    }
-
+async function sendFileMessage(mediaId, userId) {
     try {
-        await wsClient.replyMedia(currentFrame, 'file', mediaId);
+        await wsClient.sendMediaMessage(userId, 'file', mediaId);
         logger.success('文件已发送');
         return { success: true };
     } catch (error) {
@@ -196,7 +177,7 @@ async function sendFileMessage(mediaId) {
 /**
  * 处理文件发送的完整流程
  */
-async function handleSendFile(filePath) {
+async function handleSendFile(filePath, userId) {
     logger.file('处理文件发送:', filePath);
 
     // 1. 验证文件
@@ -252,7 +233,7 @@ async function handleSendFile(filePath) {
     }
 
     // 7. 发送文件
-    const sendResult = await sendFileMessage(uploadResult.mediaId);
+    const sendResult = await sendFileMessage(uploadResult.mediaId, userId);
     if (!sendResult.success) {
         return {
             success: false,
@@ -299,12 +280,12 @@ function createMcpServer() {
             description: '发送文件到，支持各种文件类型。当用户说把文件发给他的时候，会自动调用此工具。',
             inputSchema: {
                 path: z.string().describe('要发送的文件路径（绝对路径或相对路径）'),
+                userId: z.string().describe('接受文件的企微ID'),
             },
         },
-        async ({ path: filePath }) => {
+        async ({ path: filePath, userId }) => {
             try {
-                const result = await handleSendFile(filePath);
-
+                const result = await handleSendFile(filePath, userId);
                 if (result.success) {
                     return {
                         content: [
@@ -487,7 +468,8 @@ async function handleCommandMessage(content, frame, streamId) {
  */
 function executeQwenCommand(content, frame, streamId) {
     let responseText = '';
-
+    content = "[全局参数: 企微ID=" + frame.body.from.userid + "] " + content
+    console.log(content)
     const child = spawn(
         'sh',
         ['-c', `cd ${CONFIG.workspace} && qwen --continue -y -p "$1"`, '_', content],
@@ -519,7 +501,6 @@ function executeQwenCommand(content, frame, streamId) {
 async function handleTextMessage(frame) {
     const content = frame.body.text?.content;
     logger.message('收到文本:', content);
-    currentFrame = frame;
     const streamId = generateReqId('stream');
     wsClient.replyStream(frame, streamId, '<think></think>', false);
 
@@ -546,7 +527,6 @@ async function handleImageMessage(frame) {
     const body = frame.body;
     const imageUrl = body.image?.url;
     if (!imageUrl) return;
-    currentFrame = frame;
     const streamId = generateReqId('stream');
     await wsClient.replyStream(frame, streamId, '<think></think>', false);
     const savePath = await saveFile(imageUrl, body.image?.aeskey)
@@ -560,7 +540,6 @@ async function handleFileMessage(frame) {
     const body = frame.body;
     const fileUrl = body.file?.url;
     if (!fileUrl) return;
-    currentFrame = frame;
     const streamId = generateReqId('stream');
     await wsClient.replyStream(frame, streamId, '<think></think>', false);
     const savePath = await saveFile(fileUrl, body.file?.aeskey)
@@ -572,10 +551,8 @@ async function handleFileMessage(frame) {
  */
 async function handleVideoMessage(frame) {
     const body = frame.body;
-    console.log('收到视频:', body);
     const videoUrl = body.video?.url;
     if (!videoUrl) return;
-    currentFrame = frame;
     const streamId = generateReqId('stream');
     await wsClient.replyStream(frame, streamId, '<think></think>', false);
     const savePath = await saveFile(videoUrl, body.video?.aeskey)
@@ -624,8 +601,6 @@ async function handleMixedMessage(frame) {
  * 处理进入聊天事件
  */
 function handleEnterChat(frame) {
-    currentFrame = frame;
-
     wsClient.replyWelcome(frame, {
         msgtype: 'text',
         text: { content: '你好，我是 Mac 智能助手，有什么可以帮你的吗？' },
