@@ -10,7 +10,7 @@
 
 ---
 
-## New!
+## 🎉 New!
 
 基于微信 BOT 的方案已开源，https://github.com/HammCn/weixin-bot-qwen-mcp
 
