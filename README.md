@@ -10,6 +10,12 @@
 
 ---
 
+## New!
+
+基于微信 BOT 的方案已开源，https://github.com/HammCn/weixin-bot-qwen-mcp
+
+---
+
 ## 📖 项目简介
 
 本项目是一个基于 **MCP (Model Context Protocol)** 协议的企业微信机器人 MCP 服务器。它允许用户通过企业微信客户端与 QwenCode 智能助手进行交互，支持文本对话、文件传输、命令执行等功能。
